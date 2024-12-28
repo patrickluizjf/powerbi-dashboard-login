@@ -17,31 +17,36 @@ const Index = () => {
     setIsLoading(true);
 
     try {
-      const tokenResponse = await fetch("https://login.microsoftonline.com/2b/oauth2/v2.0/token", {
+      const formData = new URLSearchParams({
+        grant_type: "client_credentials",
+        client_id: credentials.clientId,
+        client_secret: credentials.clientSecret,
+        scope: "https://analysis.windows.net/powerbi/api/.default",
+      });
+
+      const response = await fetch("https://login.microsoftonline.com/2b/oauth2/v2.0/token", {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
+          "Accept": "application/json",
         },
-        body: new URLSearchParams({
-          grant_type: "client_credentials",
-          client_id: credentials.clientId,
-          client_secret: credentials.clientSecret,
-          scope: "https://analysis.windows.net/powerbi/api/.default",
-        }),
+        body: formData.toString(),
       });
 
-      if (!tokenResponse.ok) {
-        throw new Error("Failed to authenticate");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error_description || 'Authentication failed');
       }
 
-      const tokenData = await tokenResponse.json();
+      const tokenData = await response.json();
       localStorage.setItem("pbi_token", tokenData.access_token);
       localStorage.setItem("pbi_group_id", credentials.groupId);
       
       toast.success("Successfully authenticated!");
       navigate("/workspace");
     } catch (error) {
-      toast.error("Authentication failed. Please check your credentials.");
+      console.error('Login error:', error);
+      toast.error(error instanceof Error ? error.message : "Authentication failed. Please check your credentials.");
     } finally {
       setIsLoading(false);
     }
@@ -68,7 +73,7 @@ const Index = () => {
               <label className="text-sm font-medium">Client ID</label>
               <input
                 type="text"
-                className="input-field"
+                className="w-full px-3 py-2 border rounded-lg bg-background"
                 value={credentials.clientId}
                 onChange={(e) =>
                   setCredentials({ ...credentials, clientId: e.target.value })
@@ -82,7 +87,7 @@ const Index = () => {
               <label className="text-sm font-medium">Client Secret</label>
               <input
                 type="password"
-                className="input-field"
+                className="w-full px-3 py-2 border rounded-lg bg-background"
                 value={credentials.clientSecret}
                 onChange={(e) =>
                   setCredentials({ ...credentials, clientSecret: e.target.value })
@@ -96,7 +101,7 @@ const Index = () => {
               <label className="text-sm font-medium">Group ID</label>
               <input
                 type="text"
-                className="input-field"
+                className="w-full px-3 py-2 border rounded-lg bg-background"
                 value={credentials.groupId}
                 onChange={(e) =>
                   setCredentials({ ...credentials, groupId: e.target.value })
@@ -108,7 +113,7 @@ const Index = () => {
 
             <button
               type="submit"
-              className="button-primary w-full"
+              className="w-full px-4 py-2 text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
               disabled={isLoading}
             >
               {isLoading ? "Authenticating..." : "Log In"}
