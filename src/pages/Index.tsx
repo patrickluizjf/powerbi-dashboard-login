@@ -19,11 +19,21 @@ const Index = () => {
     setIsLoading(true);
 
     try {
+      console.log('Invoking powerbi-auth function...');
       const { data, error } = await supabase.functions.invoke('powerbi-auth', {
         body: credentials
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw error;
+      }
+
+      console.log('Function response:', data);
+
+      if (!data?.access_token || !data?.workspace_id) {
+        throw new Error('Invalid response from authentication service');
+      }
 
       localStorage.setItem("pbi_token", data.access_token);
       localStorage.setItem("pbi_group_id", data.workspace_id);
