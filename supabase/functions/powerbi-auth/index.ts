@@ -1,4 +1,3 @@
-// Follow Deno's standard library for serving HTTP
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -43,6 +42,7 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorData = await response.json();
+      console.error('PowerBI authentication failed:', errorData);
       throw new Error(errorData.error_description || 'Authentication failed');
     }
 
@@ -50,27 +50,27 @@ serve(async (req) => {
     console.log('Successfully obtained PowerBI token');
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         access_token: tokenData.access_token,
-        workspace_id: workspaceId 
+        workspace_id: workspaceId,
       }),
-      { 
-        headers: { 
+      {
+        headers: {
           ...corsHeaders,
-          'Content-Type': 'application/json'
-        } 
+          'Content-Type': 'application/json',
+        },
       }
     );
   } catch (error) {
-    console.error('Error:', error.message);
+    console.error('Error in powerbi-auth function:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
-      { 
+      {
         status: 400,
-        headers: { 
+        headers: {
           ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+        },
       }
     );
   }
