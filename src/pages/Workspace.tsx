@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { FileText, Calendar, ExternalLink } from "lucide-react";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 
 interface Report {
   id: string;
@@ -117,15 +118,24 @@ const Workspace = () => {
                   </span>
                 </div>
 
-                <a
-                  href={report.embedUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center w-full px-4 py-2 mt-4 rounded-lg bg-primary/5 text-primary hover:bg-primary/10 transition-colors"
-                >
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  Open Report
-                </a>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <button className="flex items-center justify-center w-full px-4 py-2 mt-4 rounded-lg bg-primary/5 text-primary hover:bg-primary/10 transition-colors">
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Open Report
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-[90vw] w-[1200px] h-[80vh]">
+                    <iframe
+                      title={report.name}
+                      src={report.embedUrl}
+                      width="100%"
+                      height="100%"
+                      allowFullScreen
+                      frameBorder="0"
+                    />
+                  </DialogContent>
+                </Dialog>
               </div>
             </motion.div>
           ))}
