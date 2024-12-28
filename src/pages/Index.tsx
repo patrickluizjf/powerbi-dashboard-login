@@ -24,7 +24,7 @@ const Index = () => {
         scope: "https://analysis.windows.net/powerbi/api/.default",
       });
 
-      const response = await fetch("https://login.microsoftonline.com/2b/oauth2/v2.0/token", {
+      const response = await fetch(`https://api.powerbi.com/v1.0/myorg/groups/${groupId}/reports`, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
