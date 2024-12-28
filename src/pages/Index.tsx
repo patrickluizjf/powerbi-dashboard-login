@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
   const [credentials, setCredentials] = useState({
@@ -18,30 +19,14 @@ const Index = () => {
     setIsLoading(true);
 
     try {
-      const tokenUrl = `https://login.microsoftonline.com/${credentials.tenantId}/oauth2/v2.0/token`;
-      const formData = new URLSearchParams({
-        grant_type: "client_credentials",
-        client_id: credentials.clientId,
-        client_secret: credentials.clientSecret,
-        scope: "https://analysis.windows.net/powerbi/api/.default",
+      const { data, error } = await supabase.functions.invoke('powerbi-auth', {
+        body: credentials
       });
 
-      const response = await fetch(tokenUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: formData.toString(),
-      });
+      if (error) throw error;
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error_description || 'Authentication failed');
-      }
-
-      const tokenData = await response.json();
-      localStorage.setItem("pbi_token", tokenData.access_token);
-      localStorage.setItem("pbi_group_id", credentials.workspaceId);
+      localStorage.setItem("pbi_token", data.access_token);
+      localStorage.setItem("pbi_group_id", data.workspace_id);
       
       toast.success("Successfully authenticated!");
       navigate("/workspace");
