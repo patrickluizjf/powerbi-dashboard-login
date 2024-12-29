@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { FileText, Calendar, ExternalLink } from "lucide-react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Report {
   id: string;
@@ -12,9 +13,16 @@ interface Report {
   modifiedDateTime: string;
 }
 
+interface EmbedTokens {
+  accessToken: string;
+  embedToken: string;
+}
+
 const Workspace = () => {
   const [reports, setReports] = useState<Report[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [embedTokens, setEmbedTokens] = useState<EmbedTokens | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -53,6 +61,26 @@ const Workspace = () => {
 
     fetchReports();
   }, [navigate]);
+
+  const handleReportOpen = async (report: Report) => {
+    try {
+      setSelectedReport(report);
+      const groupId = localStorage.getItem("pbi_group_id");
+      
+      const { data, error } = await supabase.functions.invoke('powerbi-auth', {
+        body: {
+          groupId,
+          reportId: report.id,
+        },
+      });
+
+      if (error) throw error;
+      setEmbedTokens(data);
+    } catch (error) {
+      console.error('Error getting embed token:', error);
+      toast.error("Failed to get report access. Please try again.");
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("pbi_token");
@@ -120,20 +148,29 @@ const Workspace = () => {
 
                 <Dialog>
                   <DialogTrigger asChild>
-                    <button className="flex items-center justify-center w-full px-4 py-2 mt-4 rounded-lg bg-primary/5 text-primary hover:bg-primary/10 transition-colors">
+                    <button 
+                      onClick={() => handleReportOpen(report)}
+                      className="flex items-center justify-center w-full px-4 py-2 mt-4 rounded-lg bg-primary/5 text-primary hover:bg-primary/10 transition-colors"
+                    >
                       <ExternalLink className="w-4 h-4 mr-2" />
                       Open Report
                     </button>
                   </DialogTrigger>
                   <DialogContent className="max-w-[90vw] w-[1200px] h-[80vh]">
-                    <iframe
-                      title={report.name}
-                      src={report.embedUrl}
-                      width="100%"
-                      height="100%"
-                      allowFullScreen
-                      frameBorder="0"
-                    />
+                    {selectedReport?.id === report.id && embedTokens ? (
+                      <iframe
+                        title={report.name}
+                        src={`${report.embedUrl}&token=${embedTokens.embedToken}`}
+                        width="100%"
+                        height="100%"
+                        allowFullScreen
+                        frameBorder="0"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full">
+                        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+                      </div>
+                    )}
                   </DialogContent>
                 </Dialog>
               </div>
