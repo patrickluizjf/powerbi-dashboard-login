@@ -14,35 +14,56 @@ Deno.serve(async (req) => {
       const requestData = await req.json();
       console.log('Request data:', requestData);
 
-      // Validate required parameters
+      // Validate required parameters for initial auth
+      if (requestData.clientId && requestData.clientSecret && requestData.tenantId) {
+        console.log('Authenticating with client credentials...');
+        const tokenResponse = await fetch(
+          `https://login.microsoftonline.com/${requestData.tenantId}/oauth2/v2.0/token`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+              grant_type: 'client_credentials',
+              client_id: requestData.clientId,
+              client_secret: requestData.clientSecret,
+              scope: 'https://analysis.windows.net/powerbi/api/.default'
+            }),
+          }
+        );
+
+        if (!tokenResponse.ok) {
+          const errorText = await tokenResponse.text();
+          console.error('Token response error:', errorText);
+          throw new Error(`Failed to get access token: ${tokenResponse.status} ${errorText}`);
+        }
+
+        const tokenData = await tokenResponse.json();
+        console.log('Access token obtained successfully');
+
+        return new Response(
+          JSON.stringify({
+            access_token: tokenData.access_token,
+            workspace_id: requestData.workspaceId
+          }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      // Validate required parameters for embed token
       if (!requestData.groupId || !requestData.reportId) {
         throw new Error('Missing required parameters: groupId and reportId are required');
       }
 
       const { groupId, reportId } = requestData;
-
-      // First get the access token
-      const tokenResponse = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          grant_type: 'client_credentials',
-          client_id: Deno.env.get('POWERBI_CLIENT_ID') || '',
-          client_secret: Deno.env.get('POWERBI_CLIENT_SECRET') || '',
-          scope: 'https://analysis.windows.net/powerbi/api/.default'
-        }),
-      });
-
-      if (!tokenResponse.ok) {
-        const errorText = await tokenResponse.text();
-        console.error('Token response error:', errorText);
-        throw new Error(`Failed to get access token: ${tokenResponse.status} ${errorText}`);
+      const authHeader = req.headers.get('Authorization');
+      
+      if (!authHeader) {
+        throw new Error('No authorization header provided');
       }
-
-      const tokenData = await tokenResponse.json();
-      console.log('Access token obtained successfully');
 
       // Then use the access token to generate an embed token
       const embedTokenResponse = await fetch(
@@ -50,11 +71,11 @@ Deno.serve(async (req) => {
         {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Authorization': `Bearer ${tokenData.access_token}`,
+            'Content-Type': 'application/json',
+            'Authorization': authHeader,
           },
-          body: new URLSearchParams({
-            'accessLevel': 'view'
+          body: JSON.stringify({
+            accessLevel: 'view'
           }),
         }
       );
@@ -70,7 +91,7 @@ Deno.serve(async (req) => {
 
       return new Response(
         JSON.stringify({
-          accessToken: tokenData.access_token,
+          accessToken: authHeader.split(' ')[1],
           embedToken: embedTokenData.token,
         }),
         {
