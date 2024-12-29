@@ -65,13 +65,21 @@ const Workspace = () => {
   const handleReportOpen = async (report: Report) => {
     try {
       setSelectedReport(report);
+      const token = localStorage.getItem("pbi_token");
       const groupId = localStorage.getItem("pbi_group_id");
       
+      if (!token || !groupId) {
+        throw new Error("Missing authentication token or group ID");
+      }
+
       const { data, error } = await supabase.functions.invoke('powerbi-auth', {
         body: {
           groupId,
           reportId: report.id,
         },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        }
       });
 
       if (error) throw error;
